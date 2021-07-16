@@ -10839,6 +10839,59 @@ ER_IB_SLOWRM_MOVE_FILE
 ER_GAP_LOCK_USED
   eng "Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either 1: Execute 'SET SESSION gap_lock_raise_error=off' if you are sure that your application does not rely on Gap Lock. 2: Rewrite queries to use all unique key columns in WHERE equal conditions. 3: Rewrite to single-table, single-statement transaction."
 
+
+ER_HANDLERTON_CREATE_TABLE
+  eng "rocksdb_create_handler: handlerton called. Required. Mandatory. Table: %s"
+
+ER_HANDLERTON_CLOSE_CONN
+  eng "rocksdb_close_connection: handlerton called. Required"
+
+ER_HANDLERTON_KILL_CONN
+  eng "rocksdb_kill_connection: handlerton called. Not Required"
+
+ER_HANDLERTON_SAVEPT_SET
+  eng "rocksdb_savepoint: handlerton called. Required"
+
+ER_HANDLERTON_SAVEPT_ROLLBACK
+  eng "rocksdb_rollback_to_savepoint: handlerton called. Required"
+
+ER_HANDLERTON_SAVEPT_RELEASE
+  eng "rocksdb_release_savepoint: handlerton called. Required"
+
+ER_HANDLERTON_COMMIT
+  eng "rocksdb_commit: handlerton called. Required. Query: %s"
+
+ER_HANDLERTON_ROLLBACK
+  eng "rocksdb_rollback: handlerton called. Required"
+
+ER_HANDLERTON_PREPARE
+  eng "rocksdb_xa_prepare: handlerton called. Required"
+
+ER_HANDLERTON_RECOVER
+  eng "rocksdb_xa_recover: handlerton called. Required"
+
+ER_HANDLERTON_COMMIT_XID
+  eng "commit_by_xid: handlerton called. Required"
+
+ER_HANDLERTON_ROLLBACK_XID
+  eng "rocksdb_rollback_by_xid: handlerton called. Required"
+
+ER_HANDLERTON_PANIC
+  eng "innodb_shutdown: handlerton called. Required"
+
+ER_HANDLERTON_START_SNAP
+  eng "rocksdb_start_trx_and_assign_read_view: handlerton called. Required"
+
+ER_HANDLERTON_FLUSH_LOGS
+  eng "rocksdb_flush_logs: handlerton called. Required"
+
+ER_HANDLERTON_SHOW_STATUS
+  eng "rocksdb_show_status: handlerton called. Required"
+
+ER_HANDLERTON_API_CALL
+  eng "rocksdb: API Called. Required %s"
+
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

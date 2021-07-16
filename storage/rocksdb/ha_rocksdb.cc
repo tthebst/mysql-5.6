@@ -4709,6 +4709,8 @@ static int rocksdb_close_connection(
     handlerton *const hton MY_ATTRIBUTE((__unused__)), THD *const thd) {
   Rdb_transaction *tx = get_tx_from_thd(thd);
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_CLOSE_CONN);
+
   if (tx != nullptr) {
     bool is_critical_error;
     int rc = tx->finish_bulk_load(&is_critical_error, false);
@@ -4803,6 +4805,8 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
                               bool binlog_group_flush) {
   DBUG_ASSERT(rdb != nullptr);
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_FLUSH_LOGS);
+
   // Don't flush log if 2pc isn't enabled
   if (binlog_group_flush && !rocksdb_enable_2pc) return HA_EXIT_SUCCESS;
 
@@ -4842,6 +4846,8 @@ static bool rocksdb_user_table_blocked(legacy_db_type db_type) {
 */
 static int rocksdb_prepare(handlerton *const hton MY_ATTRIBUTE((__unused__)),
                            THD *const thd, bool prepare_tx) {
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_PREPARE);
+
   Rdb_transaction *tx = get_tx_from_thd(thd);
   if (!tx->can_prepare()) {
     return HA_EXIT_FAILURE;
@@ -4884,6 +4890,8 @@ static xa_status_code rocksdb_commit_by_xid(
     handlerton *const hton MY_ATTRIBUTE((__unused__)), XID *const xid) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_COMMIT_XID);
+
   DBUG_ASSERT(hton != nullptr);
   DBUG_ASSERT(xid != nullptr);
   DBUG_ASSERT(commit_latency_stats != nullptr);
@@ -4920,6 +4928,8 @@ static xa_status_code rocksdb_commit_by_xid(
 static xa_status_code rocksdb_rollback_by_xid(
     handlerton *const hton MY_ATTRIBUTE((__unused__)), XID *const xid) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_ROLLBACK_XID);
 
   DBUG_ASSERT(hton != nullptr);
   DBUG_ASSERT(xid != nullptr);
@@ -5052,6 +5062,8 @@ static bool rocksdb_update_binlog_pos(
 static int rocksdb_recover(handlerton *const hton MY_ATTRIBUTE((__unused__)),
                            XA_recover_txn *const xid_list, uint len,
                            MEM_ROOT *mem_root MY_ATTRIBUTE((__unused__))) {
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_RECOVER);
+
   if (len == 0 || xid_list == nullptr) {
     return HA_EXIT_SUCCESS;
   }
@@ -5074,6 +5086,8 @@ static int rocksdb_recover(handlerton *const hton MY_ATTRIBUTE((__unused__)),
 static int rocksdb_commit(handlerton *const hton MY_ATTRIBUTE((__unused__)),
                           THD *const thd, bool all) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_COMMIT, thd->query().str);
 
   DBUG_ASSERT(hton != nullptr);
   DBUG_ASSERT(thd != nullptr);
@@ -5122,6 +5136,8 @@ static int rocksdb_commit(handlerton *const hton MY_ATTRIBUTE((__unused__)),
 
 static int rocksdb_rollback(handlerton *const hton MY_ATTRIBUTE((__unused__)),
                             THD *const thd, bool rollback_tx) {
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_ROLLBACK);
+
   Rdb_transaction *tx = get_tx_from_thd(thd);
   Rdb_perf_context_guard guard(tx, thd);
 
@@ -5533,6 +5549,7 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(stat_print != nullptr);
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_SHOW_STATUS);
   bool res = false;
   char buf[100] = {'\0'};
 
@@ -5887,6 +5904,7 @@ static int rocksdb_start_tx_and_assign_read_view(
 ) {
   ulong const tx_isolation = my_core::thd_tx_isolation(thd);
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_START_SNAP);
   if (tx_isolation != ISO_REPEATABLE_READ) {
     my_error(ER_ISOLATION_LEVEL_WITH_CONSISTENT_SNAPSHOT, MYF(0));
     return HA_EXIT_FAILURE;
@@ -5992,6 +6010,7 @@ static int rocksdb_start_tx_with_shared_read_view(
 static int rocksdb_savepoint(handlerton *const hton MY_ATTRIBUTE((__unused__)),
                              THD *const thd MY_ATTRIBUTE((__unused__)),
                              void *const savepoint MY_ATTRIBUTE((__unused__))) {
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_SAVEPT_SET);
   return HA_EXIT_SUCCESS;
 }
 
@@ -5999,6 +6018,9 @@ static int rocksdb_rollback_to_savepoint(
     handlerton *const hton MY_ATTRIBUTE((__unused__)), THD *const thd,
     void *const savepoint) {
   Rdb_transaction *tx = get_tx_from_thd(thd);
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_SAVEPT_ROLLBACK);
+
   return tx->rollback_to_savepoint(savepoint);
 }
 
@@ -7357,6 +7379,11 @@ static handler *rocksdb_create_handler(my_core::handlerton *const hton,
                                        my_core::TABLE_SHARE *const table_arg,
                                        bool partitioned,
                                        my_core::MEM_ROOT *const mem_root) {
+  if (table_arg != NULL) {
+    LogErr(SYSTEM_LEVEL, ER_HANDLERTON_CREATE_TABLE, table_arg->table_name.str);
+  } else {
+    LogErr(SYSTEM_LEVEL, ER_HANDLERTON_CREATE_TABLE, "null");
+  }
   if (partitioned) {
     ha_rockspart *file = new (mem_root) ha_rockspart(hton, table_arg);
     if (file && file->init_partitioning(mem_root)) {
@@ -7670,6 +7697,8 @@ int ha_rocksdb::open(const char *const name,
                      const dd::Table *table_def MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "open");
+
   int err = close();
   if (err) {
     DBUG_RETURN(err);
@@ -7777,6 +7806,8 @@ int ha_rocksdb::open(const char *const name,
 
 int ha_rocksdb::close(void) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "close");
 
   m_pk_descr = nullptr;
   m_key_descr_arr = nullptr;
@@ -9674,6 +9705,8 @@ int ha_rocksdb::get_row_by_sk(uchar *buf, const Rdb_key_def &kd,
 int ha_rocksdb::index_next(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "index_next");
+
   check_build_decoder();
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -9707,6 +9740,8 @@ int ha_rocksdb::index_next_same(uchar *const buf,
 */
 int ha_rocksdb::index_prev(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "index_prev");
 
   check_build_decoder();
 
@@ -9873,6 +9908,8 @@ Rdb_iterator_base *ha_rocksdb::get_pk_iterator() {
 int ha_rocksdb::index_first(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "index_first");
+
   check_build_decoder();
 
   ha_statistic_increment(&System_status_var::ha_read_first_count);
@@ -9886,6 +9923,8 @@ int ha_rocksdb::index_first(uchar *const buf) {
 */
 int ha_rocksdb::index_last(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "index_last");
 
   check_build_decoder();
 
@@ -10169,6 +10208,8 @@ const std::string ha_rocksdb::get_table_comment(const TABLE *const table_arg) {
 */
 int ha_rocksdb::write_row(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "write_row");
 
   DBUG_ASSERT(buf != nullptr);
   DBUG_ASSERT(buf == table->record[0]);
@@ -11103,6 +11144,8 @@ static void setup_iterator_bounds(const Rdb_key_def &kd,
 int ha_rocksdb::rnd_init(bool scan MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "rnd_init");
+
   m_need_build_decoder = true;
   m_rnd_scan_started = false;
   DBUG_RETURN(
@@ -11117,6 +11160,8 @@ int ha_rocksdb::rnd_init(bool scan MY_ATTRIBUTE((__unused__))) {
 */
 int ha_rocksdb::rnd_next(uchar *const buf) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "rnd_next");
 
   check_build_decoder();
 
@@ -11168,6 +11213,8 @@ void ha_rocksdb::check_build_decoder() {
 int ha_rocksdb::index_init(uint idx, bool sorted MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "indix_init");
+
   m_need_build_decoder = true;
   active_index = idx;
 
@@ -11204,6 +11251,8 @@ int ha_rocksdb::index_init(uint idx, bool sorted MY_ATTRIBUTE((__unused__))) {
 */
 int ha_rocksdb::index_end() {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "index_end");
 
   m_need_build_decoder = false;
 
@@ -11265,6 +11314,7 @@ int ha_rocksdb::reset() {
 */
 int ha_rocksdb::delete_row(const uchar *const buf) {
   DBUG_ENTER_FUNC();
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "delete row");
 
   DBUG_ASSERT(buf != nullptr);
 
@@ -11453,6 +11503,8 @@ int ha_rocksdb::update_stats(ha_statistics *ha_stats, Rdb_tbl_def *tbl_def) {
 int ha_rocksdb::info(uint flag) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "info");
+
   if (!table) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
@@ -11543,6 +11595,8 @@ int ha_rocksdb::info(uint flag) {
 void ha_rocksdb::position(const uchar *const record) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "position");
+
   longlong hidden_pk_id = 0;
   if (has_hidden_pk(table) && read_hidden_pk_id_from_rowkey(&hidden_pk_id)) {
     DBUG_ASSERT(false);  // should never reach here
@@ -11582,6 +11636,8 @@ void ha_rocksdb::position(const uchar *const record) {
 */
 int ha_rocksdb::rnd_pos(uchar *const buf, uchar *const pos) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "rnd_pos");
 
   check_build_decoder();
 
@@ -11650,6 +11706,8 @@ void ha_rocksdb::calc_updated_indexes() {
 int ha_rocksdb::update_row(const uchar *const old_data, uchar *const new_data) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "update_row");
+
   DBUG_ASSERT(old_data != nullptr);
   DBUG_ASSERT(new_data != nullptr);
   DBUG_ASSERT(m_lock_rows == RDB_LOCK_WRITE);
@@ -11706,6 +11764,7 @@ void ha_rocksdb::update_table_stats_if_needed() {
 THR_LOCK_DATA **ha_rocksdb::store_lock(THD *const thd, THR_LOCK_DATA **to,
                                        enum thr_lock_type lock_type) {
   DBUG_ENTER_FUNC();
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "store_lock");
 
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(to != nullptr);
@@ -11809,6 +11868,8 @@ void ha_rocksdb::read_thd_vars(THD *const thd) {
 */
 int ha_rocksdb::external_lock(THD *const thd, int lock_type) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "external_lock");
 
   DBUG_ASSERT(thd != nullptr);
 
@@ -11923,6 +11984,8 @@ int ha_rocksdb::external_lock(THD *const thd, int lock_type) {
 int ha_rocksdb::start_stmt(THD *const thd,
                            thr_lock_type lock_type MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "start_stmt");
 
   DBUG_ASSERT(thd != nullptr);
 
@@ -12179,6 +12242,8 @@ Rdb_tbl_def *ha_rocksdb::get_table_if_exists(const char *const tablename) {
 int ha_rocksdb::delete_table(Rdb_tbl_def *const tbl) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "delete_table");
+
   DBUG_ASSERT(tbl != nullptr);
   DBUG_ASSERT(m_tbl_def == nullptr || m_tbl_def == tbl);
 
@@ -12236,6 +12301,8 @@ int ha_rocksdb::delete_table(const char *const tablename,
                              const dd::Table *table_def
                                  MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "delete_table");
 
   DBUG_ASSERT(tablename != nullptr);
 
@@ -12350,6 +12417,8 @@ bool ha_rocksdb::check_if_incompatible_data(
 int ha_rocksdb::extra(enum ha_extra_function operation) {
   DBUG_ENTER_FUNC();
 
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "extra");
+
   switch (operation) {
     case HA_EXTRA_KEYREAD:
       m_keyread_only = true;
@@ -12391,6 +12460,8 @@ int ha_rocksdb::extra(enum ha_extra_function operation) {
 ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
                                      key_range *const max_key) {
   DBUG_ENTER_FUNC();
+
+  LogErr(SYSTEM_LEVEL, ER_HANDLERTON_API_CALL, "records_in_range");
 
   ha_rows ret = THDVAR(ha_thd(), records_in_range);
   if (ret) {
