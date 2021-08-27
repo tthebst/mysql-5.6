@@ -8,3 +8,6 @@
 [submodule "rqg"]
 	path = rqg
 	url = https://github.com/yoshinorim/rqg.git
+[submodule "kvdk"]
+	path = kvdk
+	url = https://github.com/pmem/kvdk.git
