@@ -118,7 +118,6 @@ MACRO(MYSQL_ADD_PLUGIN)
     ADD_LIBRARY(${target} STATIC ${SOURCES})
     SET_TARGET_PROPERTIES(${target}
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
-
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
     
     IF(ARG_STATIC_OUTPUT_NAME)
@@ -129,6 +128,14 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
+
+    #add KVDK
+    IF(${target} STREQUAL "rocksdb_se")
+    MESSAGE("TEST: ADDDDDDIN GKVDK YES " ${target})
+      FIND_LIBRARY(KVDKLIB NAMES libengine.so HINTS ${CMAKE_SOURCE_DIR}/extra/kvdk/)
+      target_link_libraries(${target} PUBLIC ${KVDKLIB})
+      target_include_directories(${target} PUBLIC ${CMAKE_SOURCE_DIR}/extra/kvdk/include)
+    ENDIF()
 
     IF(ARG_MANDATORY)
       SET(${with_var} ON CACHE INTERNAL
@@ -166,11 +173,11 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     IF(WIN32_CLANG AND WITH_ASAN)
-      TARGET_LINK_LIBRARIES(${target}
+      TARGET_LINK_LIBRARIES(${target} PUBLIC
         "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
     IF(NOT ARG_CLIENT_ONLY)
-      TARGET_LINK_LIBRARIES (${target} mysqlservices)
+      TARGET_LINK_LIBRARIES (${target} PUBLIC mysqlservices)
     ENDIF()
 
     # Plugin uses symbols defined in mysqld executable.
@@ -183,7 +190,7 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Use MYSQL_PLUGIN_IMPORT for static data symbols to be exported.
     IF(NOT ARG_CLIENT_ONLY)
       IF(WIN32 OR APPLE)
-        TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+        TARGET_LINK_LIBRARIES (${target} PUBLIC mysqld ${ARG_LINK_LIBRARIES})
       ENDIF()
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
@@ -229,6 +236,7 @@ MACRO(MYSQL_ADD_PLUGIN)
         COMPONENT ${INSTALL_COMPONENT})
     ENDIF()
   ELSE()
+  MESSAGE("TEST: ELSE" ${target})
     IF(WITHOUT_${plugin})
       # Update cache variable
       STRING(REPLACE "WITH_" "WITHOUT_" without_var ${with_var})
@@ -239,7 +247,7 @@ MACRO(MYSQL_ADD_PLUGIN)
   ENDIF()
 
   IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)
-    TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
+    TARGET_LINK_LIBRARIES (${target} PUBLIC ${ARG_LINK_LIBRARIES})
   ENDIF()
 
 ENDMACRO()

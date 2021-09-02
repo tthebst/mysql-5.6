@@ -1,4 +1,5 @@
 *
 !/build/mysql-8.0.20-linux-x86_64.tar.gz
 !config/
+!extra/kvdk/libengine.so
 !docker-entrypoint.sh

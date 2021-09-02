@@ -25,6 +25,23 @@ MySQL is brought to you by the MySQL team at Oracle.
 
 
 ````
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=system     -DWITH_ZLIB=bundled -DMYSQL_MAINTAINER_MODE=0 -DENABLED_LOCAL_INFILE=1     -DENABLE_DTRACE=0 -DCMAKE_CXX_FLAGS="-march=native" -DWITH_BOOST=/mysql-5.6/boost_1_70_0 -DCMAKE_INSTALL_PREFIX=/out -DCPACK_MONOLITHIC_INSTALL=1     -DWITH_ZSTD=/usr -DWITH_BOOST=/usr/local
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWITH_SSL=system     -DWITH_ZLIB=bundled -DMYSQL_MAINTAINER_MODE=0 -DENABLED_LOCAL_INFILE=1     -DENABLE_DTRACE=0 -DCMAKE_CXX_FLAGS="-march=native" -DWITH_BOOST=/mysql-5.6/boost_1_70_0 -DCMAKE_INSTALL_PREFIX=/out -DCPACK_MONOLITHIC_INSTALL=1     -DWITH_ZSTD=/usr -DWITH_BOOST=/usr/local -DWITH_KVDK=1
 make -j$(nproc)
 ```
+
+## INstall KVDK
+
+```
+git clone --recurse-submodules https://github.com/pmem/kvdk.git
+mkdir -p build && cd build
+cmake ../build -DCMAKE_BUILD_TYPE=Release && make -j
+make install
+```
+
+
+mkdir -p extra/kvdk/include
+cp kvdk/build/libengine.so extra/kvdk/
+cp kvdk/include/kvdk/*  extra/kvdk/include/
+
+
+docker build -t mysql-test . &&  docker rm $(docker stop $(docker ps -a -q --filter name=mysql8 --format="{{.ID}}")) &&  docker run --network host  --cap-add=sys_nice -v $HOME/my-rocks-ref.cnf:/etc/mysql/my.cnf -v /pmem:/pmem -e MYSQL_ROOT_PASSWORD=secret -e MYSQL_USER=mysql -e MYSQL_PASSWORD=secret --name mysql8 -d mysql-test mysqld --default-authentication-plugin=mysql_native_password

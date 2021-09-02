@@ -64,7 +64,7 @@ ENV MYSQL_MAJOR 8.0
 ENV MYSQL_VERSION 8.0.25-1debian10
 
 # bust cache
-ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
+#ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 # Copy package from build
 COPY ./build/mysql-8.0.20-linux-x86_64.tar.gz /mysql.tar.gz
 # follow inustruction from https://dev.mysql.com/doc/mysql-installation-excerpt/8.0/en/binary-installation.html
@@ -78,12 +78,14 @@ RUN mkdir /usr/local/mysql \
     && chown mysql:mysql mysql-files\
     && chmod 750 mysql-files
 
-
+RUN ls /usr/local/mysql
+#ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+COPY ./extra/kvdk/libengine.so /usr/lib/
 
 # the "/var/lib/mysql" stuff here is because the mysql-server postinst doesn't have an explicit way to disable the mysql_install_db codepath besides having a database already "configured" (ie, stuff in /var/lib/mysql/mysql)
 # also, we set debconf keys to make APT a little quieter
 RUN apt-get update \
-    && apt-get install -y \
+    && apt-get install -y libhwloc-dev libpmem-dev librpmem-dev libpmemblk-dev libpmemlog-dev libpmemobj-dev libpmempool-dev libpmempool-dev\
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/lib/mysql && rm -rf /var/lib/redo && mkdir -p /var/lib/mysql /var/run/mysqld /var/lib/redo  \
     && chown -R mysql:mysql /var/lib/mysql /var/run/mysqld /var/lib/redo \

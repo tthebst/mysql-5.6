@@ -100,6 +100,9 @@
 
 #include <rapidjson/document.h>
 
+#include "engine.hpp"
+#include "namespace.hpp"
+
 #ifdef FB_HAVE_WSENV
 #include "./ObjectFactory.h"
 #endif
@@ -8748,6 +8751,36 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
 
   DBUG_ASSERT(table_arg != nullptr);
   DBUG_ASSERT(create_info != nullptr);
+
+  kvdk::Status status;
+  kvdk::Engine *engine = nullptr;
+  LogErr(SYSTEM_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, "CREATE ENGINE");
+  // Initialize a KVDK instance.
+  {
+    kvdk::Configs engine_configs;
+    {
+      // Configure for a tiny KVDK instance.
+      // Approximately 10MB /mnt/pmem0/ space is needed.
+      // Please refer to "Configuration" section in user documentation for
+      // details.
+      engine_configs.pmem_file_size = (1ull << 20);
+      engine_configs.pmem_segment_blocks = (1ull << 8);
+      engine_configs.hash_bucket_num = (1ull << 10);
+    }
+    // The KVDK instance is mounted as a directory
+    // /mnt/pmem0/tutorial_kvdk_example.
+    // Modify this path if necessary.
+    std::string engine_path{"/pmem/tutorial_kvdk_example"};
+
+    // Purge old KVDK instance
+    int sink = system(std::string{"rm -rf " + engine_path + "\n"}.c_str());
+
+    status = kvdk::Engine::Open(engine_path, &engine, engine_configs, stdout);
+    assert(status == kvdk::Status::Ok);
+    LogErr(SYSTEM_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+           "Successfully opened a KVDK instance.");
+    printf("Successfully opened a KVDK instance.\n");
+  }
 
   if (create_info->data_file_name) {
     // DATA DIRECTORY is used to create tables under a specific location

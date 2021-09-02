@@ -1457,6 +1457,12 @@ IF(WITH_PROTOBUF STREQUAL "bundled")
   ADD_SUBDIRECTORY(extra/protobuf)
 ENDIF()
 
+IF(WITH_KVDK)
+  # add kvdk engine file to mysql lib folder
+  MESSAGE("ADDING KVDK")
+  file(COPY ${CMAKE_SOURCE_DIR}/extra/kvdk/libengine.so DESTINATION ${CMAKE_SOURCE_DIR}/build/lib/)
+ENDIF()
+
 #
 # Setup maintainer mode options by the end. Platform checks are
 # not run with the warning options as to not perturb fragile checks
